@@ -111,9 +111,17 @@ The Manager LLM uses **tool calling** (the same mechanism that lets ChatGPT call
 |---|---|---|
 | What does the LLM return on its first call? | A label string: `"product"` | A tool call: `ProductAgent("paint")` |
 | Then what? | Python code routes to that one agent. **The router LLM is done.** | The framework runs the tool, feeds the result back to the Manager LLM, which decides what to do next |
-| How many sub-agents can run per user message? | **Exactly one** | **Zero, one, or many** |
+| How many sub-agents run per user message? | **One** (this workshop's `HandoffService` returns a single label) | **Zero, one, or many** |
 | Who writes the final reply to the user? | The chosen specialist agent | The Manager itself (after collecting tool results) |
 | LLM calls per user message | 2 (router + 1 specialist) | 2 to N (Manager + however many tool round-trips it needs) |
+
+> 💡 **"But can't a multi-agent system run agents in parallel?"** — Yes! But that's a *different* pattern called **Concurrent / Parallel** (pattern #4 in the table below), not routing. By definition a *router* picks one destination — like a network router forwarding a packet to a single next hop. If you wanted to fan out to several specialists at once, you'd use the **Concurrent pattern** (`asyncio.gather([agent_a.run(...), agent_b.run(...)])`) or the **Manager pattern**, where the Manager LLM can issue several tool calls in one turn. So:
+>
+> * **Router as built in this workshop** → 1 specialist per message.
+> * **Concurrent pattern** → N specialists per message, in parallel, results merged by code.
+> * **Manager pattern** → N specialists per message, decided by the LLM at runtime.
+>
+> Fan-out is absolutely possible — it just isn't what *routing* means.
 
 #### The "decide" they share is different in scope
 
