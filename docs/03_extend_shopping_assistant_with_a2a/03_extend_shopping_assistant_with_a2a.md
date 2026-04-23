@@ -24,127 +24,152 @@ After you complete this exercise, you will be able to:
 
 * **Estimated Time:** 40 minutes
 
-## Background: Multi-Agent (Router) vs A2A (Manager) — what's the difference?
+## Theory primer: Multi-Agent vs A2A (no workshop knowledge required)
 
-This is the most common point of confusion for people new to multi-agent systems. Exercise 02 and Exercise 03 both have "many agents working together," but they coordinate them in **two very different ways**.
+> Read this first if you're new to the topic. The next section maps these ideas to the workshop, and the [advanced section](#advanced-orchestration-patterns-vs-the-a2a-protocol) goes deeper.
 
-### The two patterns at a glance
+### What is an "agent"?
 
-| | **Exercise 02 — Multi-Agent with Router** | **Exercise 03 — A2A with Manager** |
+An **agent** is a program that uses a language model (LLM) to decide what to do. It usually has:
+
+* a **system prompt** that tells it what role to play ("you are a paint expert"),
+* optional **tools** (functions, APIs, databases) it can call,
+* and a loop where it reads input → asks the LLM → maybe calls a tool → asks the LLM again → eventually returns an answer.
+
+A **single-agent** system has one of these. **Multi-agent** means there is more than one.
+
+### What is "multi-agent"?
+
+**Multi-agent is a design choice, not a product.** It just means: instead of one big agent that does everything, you build several smaller agents that each specialise in something (paint, plumbing, billing…), and you arrange for them to work together.
+
+The interesting part of multi-agent design is **how the agents are arranged to cooperate**. The common arrangements are:
+
+| Arrangement | What it does |
+|---|---|
+| **Handoff (Router)** | A small classifier looks at the user's request and **picks one** specialist to handle it. The chosen specialist replies. |
+| **Sequential (pipeline)** | Agent A → Agent B → Agent C. Fixed order. Each one's output feeds the next. (e.g. Researcher → Writer → Editor) |
+| **Concurrent (parallel)** | Run several agents at the same time, then merge their answers. (e.g. send the same draft to 3 reviewers, average their scores) |
+| **Manager / Magentic (orchestrator)** | A "manager" agent uses the other agents as **tools**. It decides at runtime which to call, in what order, possibly several times. |
+| **Group chat** | All agents share one transcript and take turns. A moderator agent decides when to stop. |
+
+These are all **multi-agent**. They differ in **who decides what runs next** (a classifier? a manager LLM? a fixed pipeline?) and **how many agents run per request** (one? many in sequence? many in parallel?).
+
+> **Important:** "Multi-agent" by itself does **not** tell you whether the agents live in the same Python process, in different containers, in the cloud, or anywhere else. That's a separate decision.
+
+### What is A2A?
+
+**A2A (Agent2Agent Protocol)** is a **wire protocol** — a standard way for one agent to send a message to another agent **over the network**. Think of it like HTTP for agents, or like SMTP for email.
+
+A2A defines three things:
+
+1. **AgentCard** — a small JSON document published by every A2A agent. It describes the agent's name, what it can do, and the URL to call it. (Think: an OpenAPI spec for an agent.)
+2. **Message format** — the exact JSON shape of a "task" sent to an agent and the events streamed back as a reply.
+3. **Task lifecycle** — `submitted → working → completed` (or `failed`/`cancelled`), with optional cancellation and resumption.
+
+That's all A2A is. It does **not** tell you:
+
+* how many agents your system has,
+* who decides which agent runs next,
+* whether agents run in sequence or parallel,
+* what language or framework each agent is written in.
+
+### The key insight: they answer different questions
+
+| Question | Answered by |
+|---|---|
+| "How is the work organised among my agents?" | **Multi-agent arrangement** (handoff, pipeline, parallel, manager, group chat) |
+| "How do my agents physically send messages to each other?" | **Transport** (in-process function call, gRPC, REST, **A2A**, …) |
+
+These are **independent**. You can have:
+
+* Multi-agent **without** A2A — all agents in one Python process, calling each other as functions. Very common.
+* A2A **without** multi-agent thinking — a single agent exposed at an A2A endpoint so other systems can call it.
+* Multi-agent **with** A2A — each specialist runs in its own container/language, and they talk over A2A.
+
+### Mental shortcut
+
+> **Multi-agent** = a *style* of building (more than one specialist agent, arranged to cooperate).
+> **A2A** = a *protocol* (the standard wire format agents use to talk to each other when they're not in the same process).
+
+If two friends compare notes, that's "collaboration" (a style). Whether they do it by speaking, by phone, or by email is the "transport". Multi-agent is the collaboration style. A2A is one of the possible transports.
+
+### When does each matter?
+
+* You start caring about **multi-agent design** as soon as you have more than one agent and need to decide how they interact.
+* You start caring about **A2A** when your agents need to be **independently deployable** — different teams, different languages, different release cycles, or callable by other organisations. If everything stays in one Python process, you don't need A2A; plain function calls work fine.
+
+### Three common newbie misconceptions
+
+1. **"A2A is a multi-agent pattern."** ❌ No — A2A is a transport. Any multi-agent pattern can run with or without A2A.
+2. **"Multi-agent always means agents call each other over a network."** ❌ No — many multi-agent systems are entirely in-process. A2A is only needed when they're not.
+3. **"If I'm using A2A, I'm doing multi-agent."** ❌ Not necessarily — you can expose one agent at an A2A endpoint with no other agents involved.
+
+### TL;DR
+
+* **Multi-agent** → *several specialised agents, arranged in some pattern (handoff, pipeline, parallel, manager, group chat).*
+* **A2A** → *a standard HTTP/JSON protocol for one agent to talk to another over the network.*
+* They are **orthogonal**. You can mix them however you like.
+
+---
+
+## Background: Multi-Agent (Exercise 02) vs A2A (Exercise 03) — what's the difference?
+
+> Now that you've read the theory above, here's how those concepts map to the two exercises in this workshop.
+
+This is the most common point of confusion. Both exercises have several agents. Both use an LLM to decide which agent runs. So **what's actually different?**
+
+### The simple answer (read this first)
+
+**"Multi-agent" and "A2A" aren't the same kind of thing.** Comparing them is like comparing **"a meeting"** with **"email"**.
+
+* **Multi-agent** just means *"there is more than one agent"*. It doesn't say where the agents live or how they talk.
+* **A2A** is a **protocol** — a wire format (HTTP + JSON) that lets agents send messages to each other.
+
+So in this workshop, the real difference between the two exercises is:
+
+| | **Exercise 02 — "Multi-Agent"** | **Exercise 03 — "A2A"** |
 |---|---|---|
-| **Coordinator name in the code** | `HandoffService` (the **Router**) | `ProductManagerAgent` (the **Manager**) |
-| **What the coordinator does** | Reads the user message, **picks ONE** specialist agent, and forwards the message to it | Reads the user message, then **calls one or more** specialist agents as **tools** and combines their answers |
-| **How the choice is made** | A small classifier LLM call returns an intent label (e.g. `product`, `cart`, `discount`) | The Manager's LLM decides at runtime which sub-agents to invoke via `as_tool()` |
-| **Who talks to the user?** | The chosen specialist agent answers directly | The Manager answers, after gathering input from the specialists |
-| **Where do agents live?** | Registered in **Microsoft Foundry** (cloud-managed) | Defined in **Python code** using the Microsoft Agent Framework |
-| **Communication protocol** | Internal function calls inside your app | **A2A Protocol** over HTTP — agents are independently addressable |
-| **Typical request flow** | User → Router → 1 agent → User | User → Manager → (Agent A + Agent B + Agent C) → Manager → User |
+| **Where do the agents live?** | In **Microsoft Foundry** (cloud-managed service) | In your **Python process** (just objects in memory) |
+| **How does the app call an agent?** | Foundry SDK call (`project_client.agents.run(agent_id, …)`) | Python function call via `agent.as_tool()`, wrapped with the A2A protocol so they could be called over HTTP |
+| **What coordinates them?** | A small classifier LLM (`HandoffService`) returns one label like `"product"` and Python forwards the message to that one Foundry agent | A "manager" LLM (`ProductManagerAgent`) uses tool-calling to invoke sub-agents — possibly several, in any order — and writes the final reply itself |
+| **Is the A2A protocol involved?** | No — calls go through the Foundry SDK | Yes — agents are wrapped as A2A endpoints |
 
-### Router vs Manager — the simple analogy
+So when this workshop says *"multi-agent vs A2A"*, what it really means is:
 
-Think of a customer walking into a store:
+> **Foundry-managed agents called by SDK** (Exercise 02) vs **local Python agents wrapped with the A2A protocol** (Exercise 03).
 
-* **Router (Exercise 02)** is like the **receptionist at the front desk**. She listens to your question, decides which department it belongs to (paint, plumbing, loyalty), and **sends you to that one department**. You then talk to that department directly. The receptionist is done.
-* **Manager (Exercise 03)** is like a **personal shopping assistant**. He listens to your question, then walks around the store himself — asking the paint expert, the marketing person, and the product ranker — gathers their input, and comes back to you with a single combined answer. You only ever talk to the Manager.
+That's the real difference. Everything else is detail.
 
-So:
+### Store analogy
 
-* **Router = picks one specialist, hands off, steps out.**
-* **Manager = orchestrates several specialists, blends their answers, replies itself.**
+* **Exercise 02** is like a store where each department (paint, plumbing, loyalty) lives in its **own building** (= Foundry). A **receptionist** at the entrance listens to your question, decides which building you need, and sends you there. You then talk to that one department.
+* **Exercise 03** is like a store where all the experts work in the **same room** (= your Python process). A **personal shopper** listens to your question, walks around to whichever experts he needs (sometimes more than one), gathers their input, and gives you the combined answer himself.
 
-### Why have both?
+### Why does the workshop pair these two changes together?
 
-They solve different problems:
+Honestly — for teaching reasons. The two exercises differ on **two things at once** (where agents live *and* how they're coordinated), so it feels like one big jump. In real projects you can mix and match: you could host Foundry agents and have a Manager call them; you could have local Python agents and route them with a classifier; you could expose Foundry agents over A2A. The exercises just show the two most common combinations.
 
-* **Router** is great when each user message clearly belongs to **one domain** (e.g. "What's my discount?" → only the loyalty agent matters). It's cheaper (one specialist call), easier to trace, and matches how Foundry's managed agents are typically used in production.
-* **Manager** is great when answering a question **needs several skills at once** (e.g. "Recommend a paint roller and write me a catchy product description for it" → needs the Product agent **and** the Marketing agent). The Manager can call both and merge the result.
+### The TL;DR for newbies
 
-### "But both use an LLM to decide — what's actually different?"
+* **Multi-Agent in Exercise 02** = **agents in the cloud (Foundry)** + a **classifier** that picks one. Best for **production** apps with clearly separated domains.
+* **A2A in Exercise 03** = **agents in your code** + a **manager LLM** that can call several. Best for **prototypes** and scenarios where one answer needs **multiple specialists** working together.
 
-This is the question that trips up almost every newcomer. Yes, both patterns use an LLM to make a decision. But **what the LLM is allowed to do with that decision is completely different**.
+If you want to go deeper — including how A2A is actually a network protocol that's independent of *how* you orchestrate agents (handoff, sequential, parallel, manager, group chat…) — see the [advanced section below](#advanced-orchestration-patterns-vs-the-a2a-protocol).
 
-#### Router LLM — decides ONCE, then leaves
+---
 
-```text
-User: "What paint do you have, and write me a catchy ad for it?"
-        │
-        ▼
-┌───────────────────┐
-│ Router LLM        │  Job: pick ONE label from a fixed list.
-│ (HandoffService)  │  Returns: "product"   ← that's it. One word.
-└───────┬───────────┘
-        │
-        ▼
-   Cora (product agent)  ← only this agent runs
-        │
-        ▼
-   Reply to user (probably ignores the "ad" part — Cora doesn't do marketing)
-```
+## Advanced: orchestration patterns vs the A2A protocol
 
-The Router LLM is a **classifier**. It reads the message and returns a single label like `"product"` or `"discount"`. It does **not** call any agents itself. Your Python code reads the label and calls **one** specialist. Done.
+> ⚠️ Skip this section if you're just trying to get through the exercise. Come back when you start designing your own multi-agent system.
 
-#### Manager LLM — decides REPEATEDLY, gathers, replies
+The summary above conflates two independent ideas to keep things simple. In reality there are **two separate dimensions**:
 
-```text
-User: "What paint do you have, and write me a catchy ad for it?"
-        │
-        ▼
-┌──────────────────────────────────────────────────┐
-│ Manager LLM (ProductManagerAgent)                │
-│  Job: hold a real conversation with itself,     │
-│  using sub-agents as TOOLS.                      │
-│                                                  │
-│  Turn 1: call ProductAgent("paint")     ──► gets product list   │
-│  Turn 2: call MarketingAgent(list)      ──► gets ad copy        │
-│  Turn 3: write the final answer combining both  │
-└───────┬──────────────────────────────────────────┘
-        │
-        ▼
-   Reply to user (paint list + ad, both included)
-```
+1. **Orchestration pattern** — *how* the work is organised among agents (handoff, sequential, parallel, manager, group chat…).
+2. **Transport** — *how* agents actually send messages to each other (in-process function calls vs A2A protocol over HTTP).
 
-The Manager LLM uses **tool calling** (the same mechanism that lets ChatGPT call `get_weather()`). Each sub-agent is wrapped with `.as_tool()` so the Manager sees them as functions it can invoke — possibly **many times, in any order**, before replying.
+### Orchestration patterns (HOW agents are arranged)
 
-#### Side-by-side: what does the LLM actually return?
-
-| | **Router LLM (Ex 02)** | **Manager LLM (Ex 03)** |
-|---|---|---|
-| What does the LLM return on its first call? | A label string: `"product"` | A tool call: `ProductAgent("paint")` |
-| Then what? | Python code routes to that one agent. **The router LLM is done.** | The framework runs the tool, feeds the result back to the Manager LLM, which decides what to do next |
-| How many sub-agents run per user message? | **One** (this workshop's `HandoffService` returns a single label) | **Zero, one, or many** |
-| Who writes the final reply to the user? | The chosen specialist agent | The Manager itself (after collecting tool results) |
-| LLM calls per user message | 2 (router + 1 specialist) | 2 to N (Manager + however many tool round-trips it needs) |
-
-> 💡 **"But can't a multi-agent system run agents in parallel?"** — Yes! But that's a *different* pattern called **Concurrent / Parallel** (pattern #4 in the table below), not routing. By definition a *router* picks one destination — like a network router forwarding a packet to a single next hop. If you wanted to fan out to several specialists at once, you'd use the **Concurrent pattern** (`asyncio.gather([agent_a.run(...), agent_b.run(...)])`) or the **Manager pattern**, where the Manager LLM can issue several tool calls in one turn. So:
->
-> * **Router as built in this workshop** → 1 specialist per message.
-> * **Concurrent pattern** → N specialists per message, in parallel, results merged by code.
-> * **Manager pattern** → N specialists per message, decided by the LLM at runtime.
->
-> Fan-out is absolutely possible — it just isn't what *routing* means.
-
-#### The "decide" they share is different in scope
-
-* The **Router** decides **"which one of N buckets does this question belong to?"** — a classification. Single output. Single use.
-* The **Manager** decides **"what should my next action be?"** — could be call agent A, then agent B, then write a reply, then call agent A again. It's a loop.
-
-> A **router** is like a `switch` statement powered by an LLM.
-> A **manager** is like a chatbot whose tools happen to be other chatbots.
-
-#### A worked example — *"What paint do you have, and write me a catchy ad for it?"*
-
-* **Router** would fail at this — it has to pick **either** Product **or** Marketing, not both.
-* **Manager** handles it naturally: call Product → get the list → pass to Marketing → write the ad → combine into one reply.
-
-That's the practical difference.
-
-### "But multi-agent has many patterns — sequential, parallel, group chat… isn't A2A just one of them?"
-
-Great question. This is where most newcomers get stuck, because the words "multi-agent" and "A2A" sound like they should be in the same category — but they're not.
-
-#### Multi-agent **orchestration patterns** (HOW agents are arranged)
-
-These describe the **shape of the workflow** — who talks to whom, in what order, and who decides. The Microsoft Agent Framework (and most orchestration libraries) commonly recognise around six:
+The Microsoft Agent Framework recognises around six common patterns:
 
 | # | Pattern | What it does | Example in this workshop |
 |---|---|---|---|
@@ -155,9 +180,9 @@ These describe the **shape of the workflow** — who talks to whom, in what orde
 | 5 | **Manager / Magentic (orchestrator)** | A "manager" LLM dynamically calls sub-agents as tools, possibly many times, in any order | Exercise 03 (`ProductManagerAgent`) |
 | 6 | **Group chat (collaborative)** | Agents take turns in a shared transcript, a moderator decides when to stop | Agent Collaboration Lab (`/collab-lab/`) |
 
-All six are **orchestration patterns**. They answer the question *"how is the work organised?"*
+These are **orchestration patterns**. They answer *"how is the work organised?"*
 
-#### A2A is **not** an orchestration pattern — it's a **protocol**
+### A2A is **not** a pattern — it's a protocol
 
 A2A (Agent2Agent Protocol) answers a completely different question: *"how do agents physically talk to each other over the network?"*
 
@@ -167,55 +192,46 @@ It defines:
 * **HTTP message format** — how to send a task to an agent and stream the reply.
 * **Task lifecycle** — `submitted → working → completed/failed`, with cancellation and resumption.
 
-A2A says **nothing** about whether your orchestration is sequential, parallel, handoff, or manager-style. You can build **any of the six patterns above with or without A2A**.
+A2A says **nothing** about whether your orchestration is sequential, parallel, handoff, or manager-style. **You can build any of the six patterns above with or without A2A.**
 
-#### Two-axis view — pattern × transport
+### Two-axis view — pattern × transport
 
-| | **In-process (just Python imports / `as_tool()`)** | **A2A Protocol (over HTTP)** |
+| | **In-process** (Python imports, `as_tool()`, Foundry SDK) | **A2A Protocol** (over HTTP) |
 |---|---|---|
-| **Handoff (Router)** | Exercise 02 — agents live as Foundry IDs, router calls them in-process | Possible — router could POST to remote agent endpoints |
+| **Handoff (Router)** | ✅ Exercise 02 | Possible — router could POST to remote agent endpoints |
 | **Sequential** | Most pipelines | Possible — chain agents on different servers |
 | **Concurrent** | `asyncio.gather([agent_a.run(), agent_b.run()])` | Possible — fan out HTTP requests to multiple agent services |
-| **Manager / Magentic** | Sub-agents wrapped with `.as_tool()` (the local part of Exercise 03) | Sub-agents called over the wire — true distributed orchestration |
-| **Group chat** | Collab Lab — all agents in one Python process | Possible — each speaker could be a remote agent |
+| **Manager / Magentic** | Sub-agents wrapped with `.as_tool()` | ✅ Exercise 03 — sub-agents called via the A2A protocol |
+| **Group chat** | ✅ Agent Collaboration Lab | Possible — each speaker could be a remote agent |
 
-So the honest answer to *"can multi-agent do parallel too?"* is **yes — orchestration patterns are independent of A2A**.
+So the answer to *"can multi-agent run agents in parallel?"* is **yes — that's the Concurrent pattern**, and it's independent of A2A.
 
-#### Then what does A2A really give you?
+### What does A2A actually give you over plain function calls?
 
-* **Independent deployment** — each agent can live in its own container, written in its own language (Python, .NET, Java, etc.), maintained by a different team.
+* **Independent deployment** — each agent can live in its own container, written in its own language (Python, .NET, Java…), maintained by a different team.
 * **Discovery** — a manager or router can fetch an `AgentCard` from a URL and learn what an agent does at runtime, instead of hard-coding it.
 * **Cross-org reuse** — your Marketing agent could be called by your own app **and** by a partner's app, without sharing code.
 * **A standard wire format** — different SDKs and frameworks can interoperate.
 
-In short:
-
-> **Orchestration patterns** = how the work is organised (handoff, parallel, manager, group chat…).
-> **A2A** = how agents send messages to each other over the network.
->
-> They are **orthogonal**. You pick a pattern *and* you pick a transport.
-
-#### How this workshop maps to those concepts
+### How this workshop maps to those concepts
 
 | Workshop component | Orchestration pattern | Transport |
 |---|---|---|
 | Exercise 02 — Multi-Agent Shopping Assistant | **Handoff (Router)** | In-process (Foundry SDK calls) |
-| Exercise 03 — A2A Demo (`ProductManagerAgent`) | **Manager / Magentic** | A2A Protocol over HTTP |
+| Exercise 03 — A2A Demo (`ProductManagerAgent`) | **Manager / Magentic** | A2A Protocol |
 | Agent Collaboration Lab | **Group chat** | In-process |
 
-So when this workshop says *"multi-agent vs A2A"*, what it really means is:
-*"Handoff pattern in Foundry"* vs *"Manager pattern speaking the A2A protocol"*.
-The two examples differ on **both** axes at once, which is exactly why it feels like a tangle when you first read it.
+The two main exercises differ on **both** axes at once (different pattern *and* different transport), which is exactly why "multi-agent vs A2A" feels like a tangled comparison when you first read it.
 
-### When to use which
+### When to use which (quick guide)
 
-| If you need to… | Use the **Router** pattern (Exercise 02) | Use the **Manager / A2A** pattern (Exercise 03) |
+| If you need to… | Exercise 02 style | Exercise 03 style |
 |---|---|---|
 | Send each user message to exactly one specialist | ✅ | |
 | Combine output from multiple specialists in one reply | | ✅ |
 | Get full Foundry features (tracing, evals, red teaming, versioning) | ✅ | |
 | Prototype quickly with just Python + Azure OpenAI, no cloud agent registration | | ✅ |
-| Expose each agent as an independently callable HTTP service (so other apps / agents can talk to them) | | ✅ |
+| Expose each agent as an independently callable HTTP service | | ✅ |
 | Keep latency and token cost low for simple Q&A | ✅ | |
 | Let the orchestrator dynamically decide *how many* agents to involve per turn | | ✅ |
 
