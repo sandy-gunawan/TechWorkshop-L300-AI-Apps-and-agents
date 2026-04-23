@@ -1,0 +1,28 @@
+FROM python:3.12-slim
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    build-essential unixodbc-dev gcc g++ \
+    libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
+# Workaround: `agent-framework` (meta) ships an empty agent_framework/__init__.py
+# which can overwrite the real one from `agent-framework-core` depending on
+# install order. Force-reinstall core last so the real __init__.py wins.
+RUN uv pip install --reinstall-package agent-framework-core --no-deps agent-framework-core==1.0.0 \
+    && test -s /app/.venv/lib/python3.12/site-packages/agent_framework/__init__.py
+
+COPY . .
+
+EXPOSE 8000
+ENV PATH="/app/.venv/bin:$PATH"
+ENV PORT=8000
+
+# Combined entrypoint: all 3 apps on one port
+CMD ["uvicorn", "combined_app:app", "--host", "0.0.0.0", "--port", "8000"]

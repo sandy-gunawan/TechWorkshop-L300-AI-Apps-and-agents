@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zava Agent Collaboration Lab</title>
+    <script>window.BASE_PATH = "{{ base_path|default('') }}";</script>
+    <link rel="stylesheet" href="{{ base_path|default('') }}/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+<div class="lab-layout">
+    <!-- LEFT: Discussion area -->
+    <div class="lab-main">
+        <header class="lab-header">
+            <div class="lab-title">
+                <h1>🧪 Zava Agent Collaboration Lab</h1>
+                <p>Watch agents discuss, debate, and reach consensus together</p>
+            </div>
+            <div class="lab-status">
+                <span class="status-dot" id="status-dot"></span>
+                <span id="status-text">Ready</span>
+            </div>
+        </header>
+
+        <!-- Scenario picker -->
+        <section id="scenario-picker" class="scenario-picker">
+            <h2>Choose a discussion scenario</h2>
+            <p class="picker-sub">The Manager will facilitate a conversation among ProductAgent, MarketingAgent, and RankerAgent. Manager decides when consensus is reached (max {{ max_rounds }} rounds).</p>
+
+            <h3 class="category-label">🤝 Collaborative — agents work together</h3>
+            <div class="scenario-grid">
+                {% for sid, s in scenarios.items() if s.get('category') == 'Collaborative' %}
+                <button class="scenario-card" data-scenario="{{ sid }}">
+                    <div class="scenario-icon">{{ s.icon }}</div>
+                    <h3>{{ s.title }}</h3>
+                    <p>{{ s.description }}</p>
+                    <div class="scenario-prompt-preview">💬 "{{ s.prompt[:90] }}…"</div>
+                    <span class="scenario-cta">Start Discussion <i class="fas fa-arrow-right"></i></span>
+                </button>
+                {% endfor %}
+            </div>
+
+            <h3 class="category-label" style="margin-top:1.5rem;">⚔️ Debate — agents argue and challenge each other</h3>
+            <div class="scenario-grid">
+                {% for sid, s in scenarios.items() if s.get('category') == 'Debate' %}
+                <button class="scenario-card debate" data-scenario="{{ sid }}">
+                    <div class="scenario-icon">{{ s.icon }}</div>
+                    <h3>{{ s.title }}</h3>
+                    <p>{{ s.description }}</p>
+                    <div class="scenario-prompt-preview">💬 "{{ s.prompt[:90] }}…"</div>
+                    <span class="scenario-cta">Start Debate <i class="fas fa-arrow-right"></i></span>
+                </button>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- Discussion thread -->
+        <section id="discussion-area" class="discussion-area" style="display:none;">
+            <div class="discussion-toolbar">
+                <button id="back-to-scenarios" class="toolbar-btn">
+                    <i class="fas fa-arrow-left"></i> Choose another scenario
+                </button>
+                <div class="discussion-title" id="discussion-title"></div>
+                <div class="discussion-status" id="discussion-status">
+                    <span class="ds-spinner"></span>
+                    <span id="discussion-status-text">Initializing…</span>
+                </div>
+            </div>
+            <!-- How it works legend -->
+            <div class="how-it-works">
+                <div class="hiw-step"><span class="hiw-num">1</span> User sends a question</div>
+                <div class="hiw-arrow">→</div>
+                <div class="hiw-step"><span class="hiw-num">2</span> Agents discuss (min {{ min_rounds }} turns)</div>
+                <div class="hiw-arrow">→</div>
+                <div class="hiw-step"><span class="hiw-num">3</span> Manager decides: continue or conclude</div>
+                <div class="hiw-arrow">→</div>
+                <div class="hiw-step"><span class="hiw-num">4</span> Final answer delivered to user</div>
+            </div>
+            <div id="messages" class="messages"></div>
+        </section>
+    </div>
+
+    <!-- RIGHT: Diagram + Live Flow -->
+    <div class="lab-side">
+        <div class="lab-panel">
+            <div class="lab-panel-header" style="background:#7c3aed;">
+                A2A Agent Orchestration
+            </div>
+            <div id="a2a-diagram" class="a2a-diagram">
+                <svg id="a2a-lines" viewBox="0 0 400 260" preserveAspectRatio="none"
+                     style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:3;">
+                    <!-- glow layers -->
+                    <line id="glow-user-client"      x1="26"  y1="54"  x2="114" y2="54"  stroke="#22d3ee" stroke-width="7" stroke-opacity="0" stroke-linecap="round"/>
+                    <line id="glow-client-server"    x1="114" y1="54"  x2="218" y2="54"  stroke="#22d3ee" stroke-width="7" stroke-opacity="0" stroke-linecap="round"/>
+                    <line id="glow-server-manager"   x1="218" y1="54"  x2="106" y2="158" stroke="#22d3ee" stroke-width="7" stroke-opacity="0" stroke-linecap="round"/>
+                    <line id="glow-manager-product"  x1="106" y1="158" x2="358" y2="110" stroke="#22d3ee" stroke-width="7" stroke-opacity="0" stroke-linecap="round"/>
+                    <line id="glow-manager-marketing" x1="106" y1="158" x2="358" y2="162" stroke="#22d3ee" stroke-width="7" stroke-opacity="0" stroke-linecap="round"/>
+                    <line id="glow-manager-ranker"   x1="106" y1="158" x2="358" y2="214" stroke="#22d3ee" stroke-width="7" stroke-opacity="0" stroke-linecap="round"/>
+                    <!-- main lines -->
+                    <line id="line-user-client"      x1="26"  y1="54"  x2="114" y2="54"  stroke="#818cf8" stroke-width="1.5" stroke-opacity="0.45" stroke-dasharray="6 4"/>
+                    <line id="line-client-server"    x1="114" y1="54"  x2="218" y2="54"  stroke="#818cf8" stroke-width="1.5" stroke-opacity="0.45" stroke-dasharray="6 4"/>
+                    <line id="line-server-manager"   x1="218" y1="54"  x2="106" y2="158" stroke="#818cf8" stroke-width="1.5" stroke-opacity="0.45" stroke-dasharray="6 4"/>
+                    <line id="line-manager-product"  x1="106" y1="158" x2="358" y2="110" stroke="#818cf8" stroke-width="1.5" stroke-opacity="0.45" stroke-dasharray="6 4"/>
+                    <line id="line-manager-marketing" x1="106" y1="158" x2="358" y2="162" stroke="#818cf8" stroke-width="1.5" stroke-opacity="0.45" stroke-dasharray="6 4"/>
+                    <line id="line-manager-ranker"   x1="106" y1="158" x2="358" y2="214" stroke="#818cf8" stroke-width="1.5" stroke-opacity="0.45" stroke-dasharray="6 4"/>
+                </svg>
+                <div class="a2a-node" id="a2a-user"      style="position:absolute;left:2%;  top:14%;"><div class="a2a-icon">👤</div><div class="a2a-lbl">User</div></div>
+                <div class="a2a-node" id="a2a-client"    style="position:absolute;left:24%; top:14%;"><div class="a2a-icon">📡</div><div class="a2a-lbl">A2A Client</div></div>
+                <div class="a2a-node" id="a2a-server"    style="position:absolute;left:50%; top:14%;"><div class="a2a-icon">🌐</div><div class="a2a-lbl">A2A Server</div></div>
+                <div class="a2a-node" id="a2a-manager"   style="position:absolute;left:20%; top:52%;"><div class="a2a-icon" style="width:42px;height:42px;font-size:1.2rem;">🧠</div><div class="a2a-lbl">Manager</div></div>
+                <div class="a2a-node" id="a2a-product"   style="position:absolute;right:4%; top:35%;"><div class="a2a-icon">📦</div><div class="a2a-lbl">Product</div></div>
+                <div class="a2a-node" id="a2a-marketing" style="position:absolute;right:4%; top:55%;"><div class="a2a-icon">📣</div><div class="a2a-lbl">Marketing</div></div>
+                <div class="a2a-node" id="a2a-ranker"    style="position:absolute;right:4%; top:75%;"><div class="a2a-icon">🏆</div><div class="a2a-lbl">Ranker</div></div>
+            </div>
+        </div>
+
+        <div class="lab-panel" style="flex:1;">
+            <div class="lab-panel-header" style="background:#0e7490;">
+                Live Flow
+                <button class="lab-panel-btn" onclick="document.getElementById('a2a-flow').innerHTML=''">Clear</button>
+            </div>
+            <div id="a2a-flow" class="a2a-flow"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Inject scenarios for client-side reference
+    window.SCENARIOS = {{ scenarios | tojson }};
+    window.MAX_ROUNDS = {{ max_rounds }};
+</script>
+<script src="{{ base_path|default('') }}/static/js/app.js"></script>
+</body>
+</html>

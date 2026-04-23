@@ -225,6 +225,56 @@
                 min-height: auto;
             }
         }
+        /* Agent Orchestration Diagram */
+        .agent-node {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            z-index: 2;
+            transition: filter 0.3s, transform 0.3s;
+        }
+        .agent-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: #312e81;
+            border: 2px solid #6366f1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+            transition: box-shadow 0.3s, border-color 0.3s, transform 0.3s;
+        }
+        .agent-label {
+            color: #c4b5fd;
+            font-size: 0.6rem;
+            margin-left: 4px;
+            text-align: left;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+        .agent-node.active .agent-icon {
+            border-color: #22d3ee;
+            box-shadow: 0 0 16px 6px rgba(34,211,238,0.55), 0 0 32px 10px rgba(99,102,241,0.3);
+            transform: scale(1.15);
+            animation: agent-pulse 1.2s infinite;
+        }
+        .agent-node.active .agent-label {
+            color: #22d3ee;
+            font-weight: 700;
+        }
+        .agent-node.done .agent-icon {
+            border-color: #10b981;
+            box-shadow: 0 0 8px 2px rgba(16,185,129,0.35);
+        }
+        .agent-node.done .agent-label {
+            color: #10b981;
+        }
+        @keyframes agent-pulse {
+            0%, 100% { box-shadow: 0 0 16px 6px rgba(34,211,238,0.55), 0 0 32px 10px rgba(99,102,241,0.3); }
+            50% { box-shadow: 0 0 24px 10px rgba(34,211,238,0.75), 0 0 48px 16px rgba(99,102,241,0.45); }
+        }
     </style>
 </head>
 <body>
@@ -242,12 +292,83 @@
             </div>
         </div>
         <div class="debug-container">
-            <div class="debug-card">
-                <div class="debug-header">
-                    <span>Raw JSON Input/Output</span>
-                    <button class="clear-debug-btn" onclick="clearDebugOutput()">Clear</button>
+            <!-- Agent Orchestration Diagram -->
+            <div class="debug-card" style="min-height: 220px; max-height: 240px;">
+                <div class="debug-header" style="background: #7c3aed; padding: 0.5rem 1rem; font-size: 0.9rem;">
+                    <span>Agent Orchestration</span>
+                    <button class="clear-debug-btn" style="background:#4c1d95;font-size:0.7rem;" onclick="document.getElementById('flow-explain').style.display=document.getElementById('flow-explain').style.display==='none'?'block':'none'">How it works?</button>
                 </div>
-                <div id="debug-output"></div>
+                <div id="agent-diagram" style="position: relative; flex: 1; background: #1e1b4b; padding: 0.4rem; overflow: hidden;">
+                    <svg id="agent-lines" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;"></svg>
+                    <div class="agent-node" id="node-user" data-agent="user" style="position:absolute;left:1%;top:50%;transform:translateY(-50%);">
+                        <div class="agent-icon">👤</div><div class="agent-label">User</div>
+                    </div>
+                    <div class="agent-node" id="node-handoff" data-agent="handoff_service" style="position:absolute;left:13%;top:50%;transform:translateY(-50%);">
+                        <div class="agent-icon">🔀</div><div class="agent-label">Router</div>
+                    </div>
+                    <div class="agent-node" id="node-cora" data-agent="cora" style="position:absolute;left:28%;top:4%;">
+                        <div class="agent-icon">🛍️</div><div class="agent-label">Cora</div>
+                    </div>
+                    <div class="agent-node" id="node-inventory" data-agent="inventory_agent" style="position:absolute;left:28%;top:27%;">
+                        <div class="agent-icon">📦</div><div class="agent-label">Inventory</div>
+                    </div>
+                    <div class="agent-node" id="node-interior" data-agent="interior_designer" style="position:absolute;left:28%;top:50%;">
+                        <div class="agent-icon">🎨</div><div class="agent-label">Designer</div>
+                    </div>
+                    <div class="agent-node" id="node-cart" data-agent="cart_manager" style="position:absolute;left:28%;top:73%;">
+                        <div class="agent-icon">🛒</div><div class="agent-label">Cart</div>
+                    </div>
+                    <div class="agent-node" id="node-mcp" data-agent="mcp_tools" style="position:absolute;left:50%;top:30%;transform:translateY(-50%);">
+                        <div class="agent-icon">🔧</div><div class="agent-label">MCP</div>
+                    </div>
+                    <div class="agent-node" id="node-loyalty" data-agent="customer_loyalty" style="position:absolute;left:50%;top:73%;">
+                        <div class="agent-icon">⭐</div><div class="agent-label">Loyalty</div>
+                    </div>
+                    <div class="agent-node" id="node-tool-rec" data-agent="tool_rec" style="position:absolute;right:5%;top:2%;">
+                        <div class="agent-icon" style="width:30px;height:30px;font-size:0.8rem;">🔍</div><div class="agent-label">Products</div>
+                    </div>
+                    <div class="agent-node" id="node-tool-inv" data-agent="tool_inv" style="position:absolute;right:5%;top:24%;">
+                        <div class="agent-icon" style="width:30px;height:30px;font-size:0.8rem;">📋</div><div class="agent-label">Stock</div>
+                    </div>
+                    <div class="agent-node" id="node-tool-disc" data-agent="tool_disc" style="position:absolute;right:5%;top:46%;">
+                        <div class="agent-icon" style="width:30px;height:30px;font-size:0.8rem;">💰</div><div class="agent-label">Discount</div>
+                    </div>
+                    <div class="agent-node" id="node-tool-img" data-agent="tool_img" style="position:absolute;right:5%;top:68%;">
+                        <div class="agent-icon" style="width:30px;height:30px;font-size:0.8rem;">🖼️</div><div class="agent-label">Image</div>
+                    </div>
+                </div>
+            </div>
+            <!-- Live Flow Log (real-time per-prompt explanation) -->
+            <div class="debug-card" style="margin-top:0.4rem;flex:2;min-height:120px;">
+                <div class="debug-header" style="background:#0e7490;padding:0.4rem 1rem;font-size:0.85rem;">
+                    <span>Live Flow</span>
+                    <button class="clear-debug-btn" style="font-size:0.7rem;" onclick="document.getElementById('flow-log').innerHTML=''">Clear</button>
+                </div>
+                <div id="flow-log" style="flex:1;padding:0.6rem;overflow-y:auto;background:#0c1929;color:#e0e7ff;font-size:0.75rem;line-height:1.5;font-family:'Segoe UI',sans-serif;"></div>
+            </div>
+            <!-- How It Works (hidden) -->
+            <div id="flow-explain" class="debug-card" style="margin-top:0.4rem;display:none;max-height:220px;">
+                <div class="debug-header" style="background:#4c1d95;padding:0.4rem 1rem;font-size:0.85rem;">
+                    <span>How It Works</span>
+                    <button class="clear-debug-btn" style="font-size:0.7rem;" onclick="document.getElementById('flow-explain').style.display='none'">✕</button>
+                </div>
+                <div style="padding:0.8rem;background:#1e1b4b;color:#e0e7ff;font-size:0.72rem;line-height:1.5;overflow-y:auto;max-height:170px;">
+                    <p style="margin:0 0 0.5rem 0;color:#22d3ee;font-weight:bold;">① User → Router</p>
+                    <p style="margin:0 0 0.5rem 0;">Message goes to the Handoff Service (LLM classifier) which picks the right agent.</p>
+                    <p style="margin:0 0 0.5rem 0;color:#22d3ee;font-weight:bold;">② Router → Agent</p>
+                    <p style="margin:0 0 0.5rem 0;">🛍️ Cora (shopping) · 📦 Inventory (stock) · 🎨 Designer (design+images) · 🛒 Cart (no MCP) · ⭐ Loyalty (background)</p>
+                    <p style="margin:0 0 0.5rem 0;color:#22d3ee;font-weight:bold;">③ Agent → MCP → ④ Tools</p>
+                    <p style="margin:0 0 0.5rem 0;">Agents call tools via MCP Server (stdio subprocess): 🔍 Products (Cosmos DB vector search) · 📋 Stock · 💰 Discount · 🖼️ Image Gen (DALL-E)</p>
+                    <p style="margin:0;">Auth: DefaultAzureCredential (managed identity). No API keys.</p>
+                </div>
+            </div>
+            <!-- Raw JSON panel (smaller) -->
+            <div class="debug-card" style="margin-top:0.4rem;flex:1;min-height:80px;max-height:160px;">
+                <div class="debug-header" style="padding:0.35rem 1rem;font-size:0.8rem;">
+                    <span>Raw JSON</span>
+                    <button class="clear-debug-btn" style="font-size:0.65rem;" onclick="clearDebugOutput()">Clear</button>
+                </div>
+                <div id="debug-output" style="font-size:0.7rem;"></div>
             </div>
         </div>
     </div>
@@ -300,6 +421,13 @@
             try {
                 var data = JSON.parse(event.data);
                 
+                // Handle agent status updates for the diagram
+                if (data.type === "agent_status") {
+                    setAgentStatus(data.agent, data.status);
+                    addDebugEntry('info', 'Agent ' + data.status.toUpperCase() + ': ' + data.agent, data);
+                    return;
+                }
+                
                 // Handle debug logs
                 if (data.type === "debug_log") {
                     addDebugEntry(data.log_type, data.message, data.data);
@@ -312,6 +440,13 @@
                 addMessage(agent, answer);
                 conversationHistory.push({role: agent, msg: answer});
                 addDebugEntry('incoming', 'Server Response', data);
+                // Mark responding agent as done
+                if (data.agent) {
+                    setAgentStatus(data.agent, 'done');
+                    setAgentStatus('handoff_service', 'done');
+                    var preview = (answer || '').substring(0, 80).replace(/</g, '&lt;');
+                    addFlowEntry('💬 <b>' + agent + '</b> responded: <i>' + preview + (answer.length > 80 ? '...' : '') + '</i>', 'done');
+                }
             } catch (e) {
                 addMessage('Bot', event.data);
                 conversationHistory.push({role: 'Bot', msg: event.data});
@@ -358,6 +493,11 @@
                 customer_id: "CUST001",
                 message: message
             };
+
+            // Reset diagram and light up user node
+            resetAllAgents();
+            setAgentStatus('user', 'active');
+            addFlowEntry('📝 <b>"' + message.substring(0, 60) + (message.length > 60 ? '...' : '') + '"</b>', 'user');
             
             // Handle image
             if (hasImage) {
@@ -391,6 +531,172 @@
                 sendMessage();
             }
         });
+
+        // ---- Agent Orchestration Diagram Logic ----
+        var agentConnections = [
+            // ① User → Router
+            ['node-user', 'node-handoff'],
+            // ② Router → Agents (picks one)
+            ['node-handoff', 'node-cora'],
+            ['node-handoff', 'node-inventory'],
+            ['node-handoff', 'node-interior'],
+            ['node-handoff', 'node-cart'],
+            // ③ Agents → MCP Server (agents call tools through MCP)
+            ['node-cora', 'node-mcp'],
+            ['node-inventory', 'node-mcp'],
+            ['node-interior', 'node-mcp'],
+            // ④ MCP Server → Individual tools
+            ['node-mcp', 'node-tool-rec'],
+            ['node-mcp', 'node-tool-inv'],
+            ['node-mcp', 'node-tool-disc'],
+            ['node-mcp', 'node-tool-img'],
+            // Loyalty calls discount tool via MCP (background)
+            ['node-loyalty', 'node-mcp'],
+        ];
+
+        function drawAgentLines() {
+            var svg = document.getElementById('agent-lines');
+            var container = document.getElementById('agent-diagram');
+            if (!svg || !container) return;
+            svg.innerHTML = '';
+            var rect = container.getBoundingClientRect();
+            // Add SVG glow filter
+            var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            defs.innerHTML = '<filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>';
+            svg.appendChild(defs);
+
+            agentConnections.forEach(function(pair) {
+                var a = document.getElementById(pair[0]);
+                var b = document.getElementById(pair[1]);
+                if (!a || !b) return;
+                var aIcon = a.querySelector('.agent-icon');
+                var bIcon = b.querySelector('.agent-icon');
+                var ar = aIcon.getBoundingClientRect();
+                var br = bIcon.getBoundingClientRect();
+                var x1 = ar.left + ar.width/2 - rect.left;
+                var y1 = ar.top + ar.height/2 - rect.top;
+                var x2 = br.left + br.width/2 - rect.left;
+                var y2 = br.top + br.height/2 - rect.top;
+                // A line is "active" only if BOTH endpoints are active or done
+                var aActive = a.classList.contains('active') || a.classList.contains('done');
+                var bActive = b.classList.contains('active') || b.classList.contains('done');
+                var isActive = aActive && bActive;
+                var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x1);
+                line.setAttribute('y1', y1);
+                line.setAttribute('x2', x2);
+                line.setAttribute('y2', y2);
+                line.setAttribute('stroke', isActive ? '#22d3ee' : '#4c1d95');
+                line.setAttribute('stroke-width', isActive ? '2.5' : '1');
+                line.setAttribute('stroke-opacity', isActive ? '0.9' : '0.25');
+                if (isActive) {
+                    line.setAttribute('filter', 'url(#glow)');
+                }
+                svg.appendChild(line);
+            });
+        }
+
+        var agentDescriptions = {
+            'user': '👤 You sent a message',
+            'handoff_service': '🔀 Router is classifying your intent to pick the right agent...',
+            'cora': '🛍️ Cora (Shopping Assistant) is handling your request — she can search products and recommend items',
+            'inventory_agent': '📦 Inventory Agent is checking stock levels for the requested product',
+            'interior_designer': '🎨 Interior Designer is working on design advice and product suggestions',
+            'cart_manager': '🛒 Cart Manager is updating your shopping cart based on conversation history',
+            'customer_loyalty': '⭐ Loyalty Agent is calculating your customer discount (runs in background)',
+            'mcp_tools': '🔧 MCP Server is executing tool calls via stdio subprocess',
+        };
+        var agentDoneDescriptions = {
+            'handoff_service': '🔀 Router selected the agent',
+            'cora': '🛍️ Cora finished — response ready',
+            'inventory_agent': '📦 Inventory check complete',
+            'interior_designer': '🎨 Designer finished',
+            'cart_manager': '🛒 Cart updated',
+            'customer_loyalty': '⭐ Loyalty discount calculated',
+            'mcp_tools': '🔧 MCP tool call returned results',
+        };
+
+        function addFlowEntry(text, type) {
+            var log = document.getElementById('flow-log');
+            if (!log) return;
+            var entry = document.createElement('div');
+            entry.style.cssText = 'padding:3px 6px;margin-bottom:3px;border-radius:4px;border-left:3px solid ' +
+                (type === 'active' ? '#22d3ee' : type === 'done' ? '#10b981' : type === 'user' ? '#6366f1' : '#6b7280') + ';' +
+                'background:' + (type === 'active' ? '#0e2a3a' : type === 'done' ? '#0a2e1f' : type === 'user' ? '#1e1b4b' : '#1f2937');
+            var time = new Date().toLocaleTimeString();
+            entry.innerHTML = '<span style="color:#6b7280;font-size:0.65rem;">' + time + '</span> ' + text;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function setAgentStatus(agentName, status) {
+            var map = {
+                'handoff_service': 'node-handoff',
+                'cora': 'node-cora',
+                'inventory_agent': 'node-inventory',
+                'interior_designer': 'node-interior',
+                'interior_designer_create_image': 'node-interior',
+                'customer_loyalty': 'node-loyalty',
+                'cart_manager': 'node-cart',
+                'mcp_tools': 'node-mcp',
+                'user': 'node-user',
+            };
+            // Which agent uses which tool nodes
+            var agentTools = {
+                'cora': ['node-tool-rec'],
+                'inventory_agent': ['node-tool-inv'],
+                'interior_designer': ['node-tool-rec', 'node-tool-img'],
+                'interior_designer_create_image': ['node-tool-img'],
+                'customer_loyalty': ['node-tool-disc'],
+            };
+            var nodeId = map[agentName];
+            if (!nodeId) return;
+            var node = document.getElementById(nodeId);
+            if (!node) return;
+            node.classList.remove('active', 'done');
+            if (status === 'active') {
+                node.classList.add('active');
+                var desc = agentDescriptions[agentName];
+                if (desc) addFlowEntry(desc, 'active');
+            } else if (status === 'done') {
+                node.classList.add('done');
+                var desc = agentDoneDescriptions[agentName];
+                if (desc) addFlowEntry(desc, 'done');
+            }
+            // When MCP tools activate/complete, also light up the specific tool nodes
+            if (agentName === 'mcp_tools') {
+                // Find which agent is currently active to determine which tools to light
+                var activeAgent = null;
+                var agentNodes = ['cora','inventory_agent','interior_designer','interior_designer_create_image','customer_loyalty'];
+                agentNodes.forEach(function(a) {
+                    var n = document.getElementById(map[a]);
+                    if (n && (n.classList.contains('active') || n.classList.contains('done'))) {
+                        activeAgent = a;
+                    }
+                });
+                var toolNodes = agentTools[activeAgent] || [];
+                toolNodes.forEach(function(toolId) {
+                    var toolNode = document.getElementById(toolId);
+                    if (toolNode) {
+                        toolNode.classList.remove('active', 'done');
+                        toolNode.classList.add(status);
+                    }
+                });
+            }
+            drawAgentLines();
+        }
+
+        function resetAllAgents() {
+            document.querySelectorAll('.agent-node').forEach(function(n) {
+                n.classList.remove('active', 'done');
+            });
+            drawAgentLines();
+        }
+
+        // Redraw lines on resize
+        window.addEventListener('resize', drawAgentLines);
+        // Initial draw after layout
+        setTimeout(drawAgentLines, 300);
     </script>
 </body>
 </html>

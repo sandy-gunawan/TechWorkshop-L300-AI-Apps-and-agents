@@ -12,9 +12,10 @@ allowing the AgentProcessor to execute function calls without if/elif branching.
 
 import logging
 import time
+import traceback
 from typing import Any, Dict, List
 
-from app.servers.mcp_inventory_client import get_mcp_client
+from app.servers.mcp_inventory_client import get_mcp_client, reset_mcp_client
 
 logger = logging.getLogger(__name__)
 
@@ -37,18 +38,33 @@ async def _timed_call(tool_name: str, arguments: Dict[str, Any]) -> Any:
     """Call an MCP tool with structured logging and timing.
 
     Returns the tool result on success, or an MCPToolError dict on failure.
+    On connection errors, resets the client and retries once.
     """
     start = time.perf_counter()
     try:
         mcp_client = await get_mcp_client()
         result = await mcp_client.call_tool(tool_name, arguments)
         elapsed = time.perf_counter() - start
-        logger.info(f"[MCP] {tool_name} completed in {elapsed:.3f}s")
+        logger.warning(f"[MCP] {tool_name} completed in {elapsed:.3f}s result_type={type(result).__name__}")
         return result
     except Exception as e:
         elapsed = time.perf_counter() - start
-        logger.error(f"[MCP] {tool_name} failed after {elapsed:.3f}s: {e}")
-        return MCPToolError(tool_name, str(e)).to_dict()
+        logger.error(f"[MCP] {tool_name} failed after {elapsed:.3f}s: {type(e).__name__}: {e}")
+        logger.error(f"[MCP] {tool_name} traceback: {traceback.format_exc()}")
+        # Reset client and retry once on connection-level errors
+        try:
+            logger.warning(f"[MCP] Resetting client and retrying {tool_name}...")
+            await reset_mcp_client()
+            mcp_client = await get_mcp_client()
+            result = await mcp_client.call_tool(tool_name, arguments)
+            elapsed = time.perf_counter() - start
+            logger.warning(f"[MCP] {tool_name} succeeded on retry in {elapsed:.3f}s")
+            return result
+        except Exception as retry_err:
+            elapsed = time.perf_counter() - start
+            logger.error(f"[MCP] {tool_name} retry also failed after {elapsed:.3f}s: {type(retry_err).__name__}: {retry_err}")
+            logger.error(f"[MCP] {tool_name} retry traceback: {traceback.format_exc()}")
+            return MCPToolError(tool_name, str(retry_err)).to_dict()
 
 
 async def mcp_create_image(prompt: str) -> Any:

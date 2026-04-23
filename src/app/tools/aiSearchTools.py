@@ -58,10 +58,20 @@ def get_request_embedding(text: str) -> list[float] | None:
     return embedding
 
 
-# Initialize Cosmos client and container
-_cosmos_client = get_cosmos_client(COSMOS_ENDPOINT)
-_database = _cosmos_client.get_database_client(DATABASE_NAME)
-_container = _database.get_container_client(CONTAINER_NAME)
+# Lazy-initialize Cosmos client and container to avoid crashing at import time
+# (e.g. when DefaultAzureCredential is not yet available in a subprocess)
+_cosmos_client = None
+_database = None
+_container = None
+
+
+def _get_container():
+    global _cosmos_client, _database, _container
+    if _container is None:
+        _cosmos_client = get_cosmos_client(COSMOS_ENDPOINT)
+        _database = _cosmos_client.get_database_client(DATABASE_NAME)
+        _container = _database.get_container_client(CONTAINER_NAME)
+    return _container
 
 
 def product_recommendations(question: str, top_k: int = 8):
@@ -92,7 +102,7 @@ def product_recommendations(question: str, top_k: int = 8):
         {"name": "@top", "value": top_k},
     ]
 
-    items = list(_container.query_items(
+    items = list(_get_container().query_items(
         query=query,
         parameters=parameters,
         enable_cross_partition_query=True,

@@ -4,6 +4,7 @@ with a persistent connection that is reused across tool calls.
 """
 import asyncio
 import logging
+import os
 import sys
 from typing import Any, Dict, List, Optional
 from pathlib import Path
@@ -38,7 +39,11 @@ class MCPShopperToolsClient:
         server_params = StdioServerParameters(
             command=sys.executable,
             args=[_SERVER_SCRIPT],
+            env={**os.environ},
         )
+
+        logger.warning(f"[MCP] Spawning MCP server subprocess: {sys.executable} {_SERVER_SCRIPT}")
+        logger.warning(f"[MCP] Env vars passed: {sorted([k for k in os.environ.keys()])}")
 
         read, write = await self._exit_stack.enter_async_context(
             stdio_client(server_params)
@@ -47,15 +52,24 @@ class MCPShopperToolsClient:
             ClientSession(read, write)
         )
         await self._session.initialize()
-        logger.info("MCP client connected via stdio")
+        logger.warning("[MCP] MCP client connected via stdio successfully")
 
     async def close(self) -> None:
         """Close the persistent connection."""
         if self._exit_stack is not None:
-            await self._exit_stack.aclose()
+            try:
+                await self._exit_stack.aclose()
+            except Exception as e:
+                logger.warning(f"[MCP] Error closing connection: {e}")
             self._session = None
             self._exit_stack = None
-            logger.info("MCP client disconnected")
+            logger.warning("[MCP] MCP client disconnected")
+
+    async def reconnect(self) -> None:
+        """Force close and re-establish the MCP connection."""
+        logger.warning("[MCP] Reconnecting MCP client...")
+        await self.close()
+        await self.connect()
 
     async def _ensure_connected(self) -> ClientSession:
         """Ensure the client is connected and return the session."""
@@ -144,10 +158,21 @@ async def get_mcp_client() -> MCPShopperToolsClient:
     """Get or create the singleton MCP client with a persistent connection."""
     global _mcp_client
     if _mcp_client is None:
+        logger.warning("[MCP] Creating new MCP client singleton...")
         _mcp_client = MCPShopperToolsClient()
         await _mcp_client.connect()
         _mcp_client.available_tools = await _mcp_client.list_tools()
+        logger.warning(f"[MCP] Client ready with {len(_mcp_client.available_tools)} tools")
     return _mcp_client
+
+
+async def reset_mcp_client() -> None:
+    """Reset the singleton MCP client, forcing a fresh connection on next use."""
+    global _mcp_client
+    if _mcp_client is not None:
+        logger.warning("[MCP] Resetting MCP client singleton...")
+        await _mcp_client.close()
+        _mcp_client = None
 
 
 # Example usage and testing

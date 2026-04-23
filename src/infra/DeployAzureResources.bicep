@@ -297,6 +297,7 @@ var cosmosDbBuiltInDataContributorRoleId = '00000000-0000-0000-0000-000000000002
 var cognitiveServicesOpenAIUserRoleId = '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd'
 var cognitiveServicesContributorRoleId = '25fbc0a9-bd7c-42a3-aa1a-3b75d497ee68'
 var azureAIUserRoleId = '53ca6127-db72-4b80-b1b0-d745d6d5456d'
+var azureAIDeveloperRoleId = '64702f94-c441-49e6-a78b-ef80e0188fee'
 
 @description('Assigns Cosmos DB Built-in Data Contributor role to the specified user')
 resource cosmosDbDataContributorRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2023-04-15' = {
@@ -422,9 +423,33 @@ resource containerAppFoundryOpenAIUserRole 'Microsoft.Authorization/roleAssignme
   }
 }
 
+@description('Assigns Azure AI Developer role to the Container App on AI Project (required for agents/write)')
+resource containerAppProjectAIDeveloperRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aiProject.id, containerApp.id, azureAIDeveloperRoleId)
+  scope: aiProject
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', azureAIDeveloperRoleId)
+    principalId: containerApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+@description('Assigns Azure AI Developer role to the Container App on Microsoft Foundry (required for agents/write)')
+resource containerAppFoundryAIDeveloperRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aiFoundry.id, containerApp.id, azureAIDeveloperRoleId)
+  scope: aiFoundry
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', azureAIDeveloperRoleId)
+    principalId: containerApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 output cosmosDbEndpoint string = cosmosDbAccount.properties.documentEndpoint
 output storageAccountName string = storageAccount.name
 output container_registry_name string = containerRegistry.name
 output application_name string = containerApp.name
 output application_url string = containerApp.properties.configuration.ingress.fqdn
+output ai_foundry_endpoint string = 'https://${aiFoundry.name}.cognitiveservices.azure.com/'
+output ai_project_name string = aiProject.name
 

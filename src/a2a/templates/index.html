@@ -4,11 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Microsoft Agent Framework Product Manager</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <script>window.BASE_PATH = "{{ base_path|default('') }}";</script>
+    <link rel="stylesheet" href="{{ base_path|default('') }}/static/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
+    <div class="a2a-layout">
+    <!-- Left: Chat -->
+    <div class="a2a-chat-side">
     <div class="container">
         <!-- Header -->
         <header class="header">
@@ -109,9 +113,95 @@
                 </div>
             </div>
         </footer>
-    </div>
 
-    <!-- Scripts -->
-    <script src="/static/js/chat.js"></script>
+    </div><!-- end container -->
+    </div><!-- end a2a-chat-side -->
+
+    <!-- Right: Agent Orchestration + Live Flow -->
+    <div class="a2a-debug-side">
+        <!-- Agent Diagram -->
+        <div class="a2a-panel">
+            <div class="a2a-panel-header" style="background:#7c3aed;">
+                A2A Agent Orchestration
+                <button class="a2a-panel-btn" onclick="document.getElementById('a2a-howit').style.display=document.getElementById('a2a-howit').style.display==='none'?'block':'none'">How it works?</button>
+            </div>
+            <div id="a2a-diagram" class="a2a-diagram">
+                <svg id="a2a-lines" viewBox="0 0 400 260" preserveAspectRatio="none" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:3;">
+                    <!-- Glow layers -->
+                    <line id="glow-user-client" x1="26" y1="54" x2="114" y2="54" stroke="#22d3ee" stroke-width="7" stroke-opacity="0" stroke-linecap="round"/>
+                    <line id="glow-client-server" x1="114" y1="54" x2="218" y2="54" stroke="#22d3ee" stroke-width="7" stroke-opacity="0" stroke-linecap="round"/>
+                    <line id="glow-server-manager" x1="218" y1="54" x2="106" y2="158" stroke="#22d3ee" stroke-width="7" stroke-opacity="0" stroke-linecap="round"/>
+                    <line id="glow-manager-product" x1="106" y1="158" x2="358" y2="110" stroke="#22d3ee" stroke-width="7" stroke-opacity="0" stroke-linecap="round"/>
+                    <line id="glow-manager-marketing" x1="106" y1="158" x2="358" y2="162" stroke="#22d3ee" stroke-width="7" stroke-opacity="0" stroke-linecap="round"/>
+                    <line id="glow-manager-ranker" x1="106" y1="158" x2="358" y2="214" stroke="#22d3ee" stroke-width="7" stroke-opacity="0" stroke-linecap="round"/>
+                    <!-- Main visible lines -->
+                    <line id="line-user-client" x1="26" y1="54" x2="114" y2="54" stroke="#818cf8" stroke-width="1.5" stroke-opacity="0.45" stroke-dasharray="6 4"/>
+                    <line id="line-client-server" x1="114" y1="54" x2="218" y2="54" stroke="#818cf8" stroke-width="1.5" stroke-opacity="0.45" stroke-dasharray="6 4"/>
+                    <line id="line-server-manager" x1="218" y1="54" x2="106" y2="158" stroke="#818cf8" stroke-width="1.5" stroke-opacity="0.45" stroke-dasharray="6 4"/>
+                    <line id="line-manager-product" x1="106" y1="158" x2="358" y2="110" stroke="#818cf8" stroke-width="1.5" stroke-opacity="0.45" stroke-dasharray="6 4"/>
+                    <line id="line-manager-marketing" x1="106" y1="158" x2="358" y2="162" stroke="#818cf8" stroke-width="1.5" stroke-opacity="0.45" stroke-dasharray="6 4"/>
+                    <line id="line-manager-ranker" x1="106" y1="158" x2="358" y2="214" stroke="#818cf8" stroke-width="1.5" stroke-opacity="0.45" stroke-dasharray="6 4"/>
+                </svg>
+                <!-- Row 1: User → A2A Client → A2A Server -->
+                <div class="a2a-node" id="a2a-user" style="position:absolute;left:2%;top:14%;">
+                    <div class="a2a-icon">👤</div><div class="a2a-lbl">User</div>
+                </div>
+                <div class="a2a-node" id="a2a-client" style="position:absolute;left:24%;top:14%;">
+                    <div class="a2a-icon">📡</div><div class="a2a-lbl">A2A Client</div>
+                </div>
+                <div class="a2a-node" id="a2a-server" style="position:absolute;left:50%;top:14%;">
+                    <div class="a2a-icon">🌐</div><div class="a2a-lbl">A2A Server</div>
+                </div>
+                <!-- Row 2: Manager → Sub-agents -->
+                <div class="a2a-node" id="a2a-manager" style="position:absolute;left:20%;top:52%;">
+                    <div class="a2a-icon" style="width:42px;height:42px;font-size:1.2rem;">🧠</div><div class="a2a-lbl">Manager</div>
+                </div>
+                <div class="a2a-node" id="a2a-product" style="position:absolute;right:4%;top:35%;">
+                    <div class="a2a-icon">📦</div><div class="a2a-lbl">Product</div>
+                </div>
+                <div class="a2a-node" id="a2a-marketing" style="position:absolute;right:4%;top:55%;">
+                    <div class="a2a-icon">📣</div><div class="a2a-lbl">Marketing</div>
+                </div>
+                <div class="a2a-node" id="a2a-ranker" style="position:absolute;right:4%;top:75%;">
+                    <div class="a2a-icon">🏆</div><div class="a2a-lbl">Ranker</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- How It Works (hidden) -->
+        <div id="a2a-howit" class="a2a-panel" style="display:none;max-height:220px;">
+            <div class="a2a-panel-header" style="background:#4c1d95;">
+                How A2A Works
+                <button class="a2a-panel-btn" onclick="document.getElementById('a2a-howit').style.display='none'">✕</button>
+            </div>
+            <div style="padding:0.7rem;background:#1e1b4b;color:#e0e7ff;font-size:0.72rem;line-height:1.5;overflow-y:auto;max-height:160px;">
+                <p style="margin:0 0 0.5rem 0;color:#22d3ee;font-weight:bold;">What is A2A (Agent-to-Agent)?</p>
+                <p style="margin:0 0 0.5rem 0;">A2A is a protocol that lets AI agents discover, communicate, and collaborate with each other over HTTP. Each agent publishes an <b>Agent Card</b> (like a business card) describing its capabilities. Other agents can discover it and send tasks.</p>
+                <p style="margin:0 0 0.5rem 0;color:#22d3ee;font-weight:bold;">Flow: User → A2A Client → A2A Server → Agents</p>
+                <p style="margin:0 0 0.5rem 0;">① <b>User</b> sends a message via the chat UI<br>② <b>A2A Client</b> wraps it as an A2A task and sends via HTTP POST<br>③ <b>A2A Server</b> receives the task, creates a task ID, and routes to the agent executor<br>④ <b>ProductManagerAgent</b> (orchestrator) analyzes the request and delegates to sub-agents using <code>as_tool()</code></p>
+                <p style="margin:0 0 0.5rem 0;color:#22d3ee;font-weight:bold;">Sub-Agents (called as tools):</p>
+                <ul style="margin:0 0 0.5rem 1rem;padding:0;list-style:disc;">
+                    <li><b>📦 ProductAgent</b> — retrieves products from catalog using <code>get_products</code> tool</li>
+                    <li><b>📣 MarketingAgent</b> — improves descriptions, suggests marketing strategies</li>
+                    <li><b>🏆 RankerAgent</b> — ranks and recommends products based on criteria</li>
+                </ul>
+                <p style="margin:0 0 0.5rem 0;color:#a78bfa;font-weight:bold;">Key Difference from Multi-Agent:</p>
+                <p style="margin:0;">In multi-agent, a router picks ONE agent. In A2A, the <b>ProductManagerAgent decides at runtime</b> which sub-agents to call — it can call multiple agents in sequence or combine their results. Sub-agents are exposed as <b>tools</b> via Microsoft Agent Framework's <code>as_tool()</code>.</p>
+            </div>
+        </div>
+
+        <!-- Live Flow -->
+        <div class="a2a-panel" style="flex:1;">
+            <div class="a2a-panel-header" style="background:#0e7490;">
+                Live Flow
+                <button class="a2a-panel-btn" onclick="document.getElementById('a2a-flow').innerHTML=''">Clear</button>
+            </div>
+            <div id="a2a-flow" class="a2a-flow"></div>
+        </div>
+    </div><!-- end a2a-debug-side -->
+    </div><!-- end a2a-layout -->
+
+    <!-- Scripts (must be after all HTML so all elements exist) -->
+    <script src="{{ base_path|default('') }}/static/js/chat.js"></script>
 </body>
 </html>
